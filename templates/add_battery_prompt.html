@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Include necessary meta tags and CSS files -->
+    <title>Add Battery</title>
+    <!-- Include Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container my-5">
+    <h1 class="mb-4">Add New Battery</h1>
+    <p>The battery code <strong>{{ battery_code }}</strong> is not in the system.</p>
+    <p>Do you want to add this battery?</p>
+    <form action="{{ url_for('confirm_add_battery') }}" method="post">
+        <input type="hidden" name="battery_code" value="{{ battery_code }}">
+        <!-- Include battery info if needed -->
+        <button type="submit" class="btn btn-primary">Yes, Add Battery</button>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+<!-- Include Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

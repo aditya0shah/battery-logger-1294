@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1294 Battery Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <style>
+        .top-right-image {
+            position: absolute;
+            top: 10px;     /* Adjust as needed */
+            right: 10px;   /* Adjust as needed */
+            z-index: 1000; /* Ensure it stays above other elements */
+        }
+
+        .top-right-image img {
+            width: 100px;  /* Adjust the size as needed */
+            height: auto;  /* Maintains aspect ratio */
+        }
+
+        /* Ensure body or parent container has relative positioning */
+        body {
+            position: relative;
+        }
+        .manual-entry-form {
+            margin-bottom: 10px;
+        }
+        .battery-table {
+            margin-top: 10px;
+        }
+        #video-feed {
+        position: absolute; /* Make it absolute so it can move freely */
+        top: 20px;          /* Initial top position */
+        left: 20px;         /* Initial left position */
+        width: 300px;       /* Adjust width as needed */
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background-color: #fff;
+        padding: 10px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        cursor: move;       /* Change cursor to indicate it's draggable */
+        z-index: 1000;      /* Ensure it stays on top of other elements */
+        }
+        body {
+            background-color: #f8f9fa;
+        }
+        .card-header {
+            background-color: #007bff;
+            color: white;
+        }
+        h1 {
+            color: #007bff;
+        }
+        .table thead th {
+            background-color: #007bff;
+            color: white;
+        }
+        .status-icon {
+            display: flex;
+            align-items: center;
+        }
+        .status-icon i {
+            margin-right: 5px;
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </style>
+</head>
+<body>
+<div class="container my-5">
+    <h1 class="text-center mb-4">1294 Battery Manager</h1>
+
+    <!-- Flex Container for Video Feed and Manual Entry Form -->
+    <div class="d-flex flex-column align-items-center">
+        <!-- Video Feed -->
+        <img id="video-feed" src="{{ url_for('video_feed') }}" alt="Video Feed" class="img-fluid">
+
+        <!-- Manual Entry Form -->
+        <div class="card mt-2 w-75 manual-entry-form">
+            <div class="card-header">Manual Battery Entry</div>
+            <div class="card-body">
+                <form action="/manual_entry" method="post" class="row g-3">
+                    <div class="col-md-8">
+                        <input type="text" name="battery_code" class="form-control" placeholder="Enter Battery Code"
+                               required>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary mb-3 w-100">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="container">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} mt-2" role="alert">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    <!-- Settings Button and Add Battery Button -->
+    <div class="text-end my-3">
+        <a href="{{ url_for('settings') }}" class="btn btn-secondary me-2">
+            Settings
+        </a>
+        <a href="{{ url_for('statistics') }}" class="btn btn-primary me-2">
+            Statistics
+        </a>
+        <a href="{{ url_for('logs') }}" class="btn btn-primary me-2">
+            View Logs
+        </a>
+        <button id="add-battery-button" class="btn btn-primary me-2">
+            Add Battery
+        </button>
+        <form action="{{ url_for('stop_system') }}" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-danger">
+                Stop
+            </button>
+        </form>
+    </div>
+
+    <!-- Battery Status Table -->
+    <div class="table-responsive battery-table">
+        <table class="table table-striped table-hover" id="battery-table">
+            <thead>
+            <tr>
+                <th>Battery Code</th>
+                <th>Status</th>
+                <th>Notes</th> <!-- New Column -->
+                <th>Elapsed/Remaining Time</th>
+                <th>Last Change</th>
+                <th>Actions</th> <!-- New column for actions -->
+            </tr>
+            </thead>
+            <tbody>
+            {% for battery in batteries %}
+            <tr data-battery-code="{{ battery.battery_code }}">
+                <td>{{ battery.battery_code }}</td>
+                <td>{{ battery.status }}</td>
+                <td>{{ battery.notes }}</td> <!-- Display Notes -->
+                <td>{{ battery.display_time }}</td>
+                <td>{{ battery.last_change }}</td>
+                <td>
+                    <!-- Edit Button -->
+                    <!--                    <button class="btn btn-sm btn-primary edit-button" data-battery-code="{{ battery.battery_code }}"-->
+                    <!--                            data-bs-toggle="modal" data-bs-target="#editModal">-->
+                    <!--                        Edit-->
+                    <!--                    </button>-->
+                    <a class="nav-link" href="{{ url_for('statistics') }}">Statistics</a>
+                    <!-- Statistics Button -->
+                    <button type="button"
+                            onclick="window.location.href='{{ url_for('battery_statistics', battery_code=battery.battery_code) }}';"
+                            class="btn btn-sm btn-info">
+                        Statistics
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Edit Battery Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="/edit_battery" method="post" id="editBatteryForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editModalLabel">Edit Battery</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Hidden field to store the original battery code -->
+                        <input type="hidden" name="original_battery_code" id="originalBatteryCode">
+                        <div class="mb-3">
+                            <label for="batteryCode" class="form-label">Battery Code</label>
+                            <input type="text" class="form-control" name="battery_code" id="batteryCode" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="batteryStatus" class="form-label">Status</label>
+                            <select class="form-select" name="status" id="batteryStatus" required>
+                                <!-- Options -->
+                                <option value="Charging">Charging</option>
+                                <option value="Cooldown To Robot">Cooldown To Robot</option>
+                                <option value="Ready for ROBOT">Ready for ROBOT</option>
+                                <option value="In Use">In Use</option>
+                                <option value="Cooldown To Charge">Cooldown To Charge</option>
+                                <option value="Ready for CHARGING">Ready for CHARGING</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="batteryNotes" class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" id="batteryNotes" rows="3"
+                                      placeholder="Enter notes or additional information here..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <!-- Delete Battery Button -->
+                        <button type="button" class="btn btn-danger me-auto" id="deleteBatteryButton">Delete Battery
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Logging Modal -->
+    <div class="modal fade" id="advancedLoggingModal" tabindex="-1" aria-labelledby="advancedLoggingModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="advancedLoggingForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="advancedLoggingModalLabel">
+                            Advanced Logging for Battery <span id="advModalBatteryCode"></span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Dynamic content based on battery status -->
+                        <div id="advancedLoggingFields"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Save Data</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Skip</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const promptedBatteries = new Set();
+    let isModalOpen = false; // Flag to track if the modal is currently open
+    const advancedLoggingForm = document.getElementById('advancedLoggingForm');
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const advancedLoggingForm = document.getElementById('advancedLoggingForm');
+
+        advancedLoggingForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Retrieve battery code from data attribute
+            const batteryCode = advancedLoggingForm.dataset.batteryCode;
+
+            const formData = new FormData(advancedLoggingForm);
+            const data = Object.fromEntries(formData.entries());
+
+            data['battery_code'] = batteryCode;
+
+            // Convert numerical values to appropriate types
+            if (data['current_usage']) {
+                data['current_usage'] = parseFloat(data['current_usage']);
+            }
+            if (data['battery_feel']) {
+                data['battery_feel'] = parseInt(data['battery_feel'], 10);
+            }
+            if (data['charged_mAh']) {
+                data['charged_mAh'] = parseInt(data['charged_mAh'], 10);
+            }
+
+            fetch('/api/advanced_logging_input', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Remove the battery from promptedBatteries
+                    promptedBatteries.delete(batteryCode);
+
+                    // Hide the modal and reset the flag
+                    const modalElement = document.getElementById('advancedLoggingModal');
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    modal.hide();
+                    isModalOpen = false;
+
+                    // Optionally refresh battery status
+                    fetchBatteryStatus();
+                } else {
+                    alert('Error saving data: ' + result.message);
+                }
+            })
+            .catch(error => console.error('Error submitting advanced logging data:', error));
+        });
+    });
+    function promptAdvancedLogging(batteryCode, status) {
+        const modalElement = document.getElementById('advancedLoggingModal');
+        const modal = new bootstrap.Modal(modalElement);
+
+        const advModalBatteryCode = document.getElementById('advModalBatteryCode');
+        const advancedLoggingFields = document.getElementById('advancedLoggingFields');
+        const advancedLoggingForm = document.getElementById('advancedLoggingForm');
+
+        // Check if elements are found
+        if (!advModalBatteryCode || !advancedLoggingFields || !advancedLoggingForm) {
+            console.error('Modal elements not found in the DOM.');
+            return;
+        }
+
+        advModalBatteryCode.textContent = (batteryCode);
+
+        // Set the battery code on the form
+        advancedLoggingForm.dataset.batteryCode = batteryCode;
+
+        // Clear previous fields
+        advancedLoggingFields.innerHTML = '';
+
+        if (status === 'In Use') {
+            advancedLoggingFields.innerHTML = `
+                <div class="mb-3">
+                    <label for="currentUsageInput" class="form-label">Current Usage (J)</label>
+                    <input type="number" step="0.01" class="form-control" id="currentUsageInput" name="current_usage" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Battery Feel</label>
+                    <div class="d-flex justify-content-between">
+                        <!-- Images representing battery feel -->
+                        ${[0,1,2,3,4].map(i => `
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="battery_feel" id="feel${i}" value="${i}" required>
+                                <label class="form-check-label" for="feel${i}">
+                                    <img src="/static/images/feel${i}.png" alt="${i} Bars" width="50">
+                                </label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } else if (status === 'Charging') {
+            advancedLoggingFields.innerHTML = `
+                <div class="mb-3">
+                    <label for="chargedmAhInput" class="form-label">Charged mAh</label>
+                    <input type="number" class="form-control" id="chargedmAhInput" name="charged_mAh" required>
+                </div>
+            `;
+        }
+
+        // Show the modal and set the flag
+        modal.show();
+        isModalOpen = true;
+
+        // Handle modal close event to reset the flag
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            isModalOpen = false;
+        }, { once: true }); // Use { once: true } to ensure the handler is removed after execution
+    }
+
+    function checkForAdvancedLogging() {
+        fetch('/api/status_changes')
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(battery => {
+                    // Check if the battery has not been prompted and no modal is open
+                    if (!promptedBatteries.has(battery.battery_code) && !isModalOpen) {
+                        promptedBatteries.add(battery.battery_code);
+                        promptAdvancedLogging(battery.battery_code, battery.status);
+                    }
+                });
+            })
+            .catch(error => console.error('Error fetching status changes:', error));
+    }
+
+    // Update the interval as desired
+    setInterval(checkForAdvancedLogging, 1000);
+
+
+
+    // Function to prompt for current usage and battery feel
+    function promptCurrentUsage(batteryCode) {
+        // Create a modal or prompt
+        // For simplicity, we'll use prompt() here, but you should create a proper modal
+        let currentUsage = prompt(`Enter current usage for battery ${(batteryCode)} (in A):`);
+        let batteryFeel = prompt(`How did the battery feel? Enter a number from 0 (worst) to 4 (best):`);
+
+        // Send the data to the server
+        fetch('/api/advanced_logging_input', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                battery_code: batteryCode,
+                current_usage: currentUsage,
+                battery_feel: batteryFeel
+            })
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  alert('Advanced logging data saved.');
+                  // Remove the flag on the battery status
+              } else {
+                  alert('Error saving data: ' + data.message);
+              }
+          });
+    }
+
+    // Function to prompt for charged mAh
+    function promptChargedmAh(batteryCode) {
+        let chargedmAh = prompt(`Enter charged mAh for battery ${(batteryCode)}:`);
+
+        // Send the data to the server
+        fetch('/api/advanced_logging_input', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                battery_code: batteryCode,
+                charged_mAh: chargedmAh
+            })
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  alert('Advanced logging data saved.');
+              } else {
+                  alert('Error saving data: ' + data.message);
+              }
+          });
+    }
+
+
+    document.getElementById('add-battery-button').addEventListener('click', function(event) {
+        // Prevent default behavior (if necessary)
+        event.preventDefault();
+
+        // Send an AJAX POST request to add a battery
+        fetch('/add_battery', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Display success message
+            const messageContainer = document.getElementById('message-container');
+            messageContainer.innerHTML = `<div class="alert alert-success" role="alert">${data.message}</div>`;
+
+            // Optional: Refresh battery status to reflect the new addition
+            fetchBatteryStatus();
+        })
+        .catch(error => {
+            console.error('Error adding battery:', error);
+            // Display error message
+            const messageContainer = document.getElementById('message-container');
+            messageContainer.innerHTML = `<div class="alert alert-danger" role="alert">Error adding battery. Please try again.</div>`;
+        });
+    });
+    const videoFeed = document.getElementById("video-feed");
+
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+
+    videoFeed.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        // Get current position
+        initialX = videoFeed.offsetLeft;
+        initialY = videoFeed.offsetTop;
+        e.preventDefault();
+    });
+
+    document.addEventListener("mousemove", (e) => {
+        if (isDragging) {
+            // Calculate new position
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            videoFeed.style.left = `${initialX + dx}px`;
+            videoFeed.style.top = `${initialY + dy}px`;
+        }
+    });
+
+    document.addEventListener("mouseup", () => {
+        isDragging = false;
+    });
+    function formatBatteryCode(code) {
+        // Format battery code as TEAM-YEAR-NUMB
+        return `${code.slice(0, 4)}-${code.slice(4, 8)}-${code.slice(8)}`;
+    }
+
+    function fetchBatteryStatus() {
+        fetch('/api/battery_status')
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.querySelector('#battery-table tbody');
+                tableBody.innerHTML = '';
+                data.forEach(battery => {
+                    const row = document.createElement('tr');
+                    row.setAttribute('data-battery-code', battery.battery_code);
+
+                    let statusIcon = '';
+                    let rowClass = '';
+
+                    console.log('Battery Status:', battery.status);
+
+                    switch (battery.status) {
+                        case 'Ready for ROBOT':
+                            statusIcon = '<span class="status-icon"><i class="bi bi-battery-full text-success"></i>Ready for ROBOT</span>';
+                            rowClass = 'table-success';
+                            break;
+                        case 'Ready for CHARGING':
+                            statusIcon = '<span class="status-icon"><i class="bi bi-plug-fill text-primary"></i>Ready for CHARGING</span>';
+                            rowClass = 'table-primary';
+                            break;
+                        case 'Charging':
+                            statusIcon = '<span class="status-icon"><i class="bi bi-battery-charging text-warning"></i>Charging</span>';
+                            rowClass = 'table-warning';
+                            break;
+                        case 'In Use':
+                            statusIcon = '<span class="status-icon"><i class="bi bi-battery-half text-info"></i>In Use</span>';
+                            rowClass = 'table-info';
+                            break;
+                        case 'Cooldown To Robot':
+                        case 'Cooldown To Charge':
+                            statusIcon = `<span class="status-icon"><i class="bi bi-thermometer-half text-secondary"></i>${battery.status}</span>`;
+                            rowClass = 'table-secondary';
+                            break;
+                        default:
+                            statusIcon = battery.status;
+                            rowClass = 'table-light'; // Assign a default class
+                            break;
+                    }
+
+                    if (rowClass) {
+                        row.classList.add(rowClass);
+                    }
+
+                    row.innerHTML = `
+                    <td>${(battery.battery_code)}</td>
+                    <td>${statusIcon}</td>
+                    <td>${battery.notes}</td>
+                    <td>${battery.display_time}</td>
+                    <td>${battery.last_change}</td>
+                    <td>
+                        <!-- Edit Button -->
+                        <button class="btn btn-sm btn-primary edit-button" data-battery-code="${battery.battery_code}" data-bs-toggle="modal" data-bs-target="#editModal">
+                            Edit
+                        </button>
+                        <!-- Statistics Button -->
+                        <a href="/battery_statistics/${battery.battery_code}" class="btn btn-sm btn-info">
+                            Statistics
+                        </a>
+                    </td>
+                `;
+                    tableBody.appendChild(row);
+                });
+
+                // Re-attach event listeners to the new Edit buttons
+                attachEditButtonListeners();
+            })
+            .catch(error => console.error('Error fetching battery status:', error));
+    }
+    function attachEditButtonListeners() {
+        const editButtons = document.querySelectorAll('.edit-button');
+        const batteryCodeInput = document.getElementById('batteryCode');
+        const originalBatteryCodeInput = document.getElementById('originalBatteryCode');
+        const batteryStatusSelect = document.getElementById('batteryStatus');
+
+        editButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const batteryCode = this.getAttribute('data-battery-code');
+                const row = this.closest('tr');
+                const status = row.cells[1].innerText.trim();
+
+                batteryCodeInput.value = batteryCode;
+                originalBatteryCodeInput.value = batteryCode;
+                batteryStatusSelect.value = status;
+            });
+        });
+    }
+    // Fetch battery status every 1 second
+    setInterval(fetchBatteryStatus, 1000);
+    fetchBatteryStatus();
+
+
+    // JavaScript to handle the Edit button clicks
+    document.addEventListener('DOMContentLoaded', function() {
+        const batteryNotesTextarea = document.getElementById('batteryNotes');
+
+
+        const editButtons = document.querySelectorAll('.edit-button');
+        const editModal = document.getElementById('editModal');
+        const batteryCodeInput = document.getElementById('batteryCode');
+        const originalBatteryCodeInput = document.getElementById('originalBatteryCode');
+        const batteryStatusSelect = document.getElementById('batteryStatus');
+
+        editButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const batteryCode = this.getAttribute('data-battery-code');
+                // Fetch battery data from the table row
+                const row = this.closest('tr');
+                const status = row.cells[1].innerText.trim();
+
+                // Populate the modal fields
+                batteryCodeInput.value = batteryCode;
+                originalBatteryCodeInput.value = batteryCode; // Store original code
+                batteryStatusSelect.value = status;
+
+                // Show the modal (Bootstrap handles this automatically with data-bs-toggle)
+            });
+        });
+    });
+    document.getElementById('deleteBatteryButton').addEventListener('click', function() {
+        const confirmed = confirm('Are you sure you want to delete this battery? This action cannot be undone.');
+        if (confirmed) {
+            const originalBatteryCode = document.getElementById('originalBatteryCode').value;
+
+            // Create a form to submit the delete request
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = '/delete_battery';
+
+            // Add CSRF token if needed (Flask-WTF or similar)
+
+            // Add the battery code to the form
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'battery_code';
+            input.value = originalBatteryCode;
+            form.appendChild(input);
+
+            // Append the form to the body and submit
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+    function checkPendingBatteries() {
+        fetch('/api/pending_batteries')
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    data.forEach(battery_code => {
+                        // Show a confirmation dialog for each pending battery
+                        if (confirm(`Battery ${(battery_code)} is not in the system. Do you want to add it?`)) {
+                            // Send a request to add the battery
+                            fetch('/api/confirm_add_battery', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ battery_code: battery_code })
+                            })
+                            .then(response => response.json())
+                            .then(result => {
+                                if (result.success) {
+                                    alert(result.message);
+                                    // Refresh the battery status
+                                    fetchBatteryStatus();
+                                } else {
+                                    alert('Error: ' + result.message);
+                                }
+                            });
+                        } else {
+                            // If user cancels, remove from pending list
+                            fetch('/api/remove_pending_battery', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ battery_code: battery_code })
+                            });
+                        }
+                    });
+                }
+            })
+            .catch(error => console.error('Error checking pending batteries:', error));
+    }
+
+    // Check for pending batteries every 5 seconds
+    setInterval(checkPendingBatteries, 5000);
+    function attachEditButtonListeners() {
+        const editButtons = document.querySelectorAll('.edit-button');
+        const batteryCodeInput = document.getElementById('batteryCode');
+        const originalBatteryCodeInput = document.getElementById('originalBatteryCode');
+        const batteryStatusSelect = document.getElementById('batteryStatus');
+        const batteryNotesTextarea = document.getElementById('batteryNotes');
+
+        editButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const batteryCode = this.getAttribute('data-battery-code');
+
+                // Fetch battery data from the server
+                fetch(`/api/get_battery_info/${batteryCode}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        batteryCodeInput.value = data.battery_code;
+                        originalBatteryCodeInput.value = data.battery_code;
+                        batteryStatusSelect.value = data.status;
+                        batteryNotesTextarea.value = data.notes || '';
+                    })
+                    .catch(error => console.error('Error fetching battery info:', error));
+            });
+        });
+    }
+
+    // Call the function to attach listeners
+    attachEditButtonListeners();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
