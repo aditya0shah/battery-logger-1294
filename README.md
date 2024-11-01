@@ -14,6 +14,8 @@ This project is a battery management system that uses barcode scanning, a video 
                 
 * Accessible from any device on the same local network.
 
+* Provides statistics and warnings on battery usage.
+
 ## Prerequisites:
 
 Ensure you have the following dependencies installed:
